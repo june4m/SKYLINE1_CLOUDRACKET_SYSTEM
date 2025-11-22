@@ -5,7 +5,7 @@ A serverless badminton court booking platform built on AWS with TypeScript, feat
 ## Architecture Overview
 
 - **Frontend**: Next.js with TypeScript (AWS Amplify)
-- **Backend**: AWS Lambda + API Gateway
+- **Backend**: Node.js with TypeScript(AWS Lambda + API Gateway)
 - **Database**: Amazon DynamoDB
 - **AI/ML**: Amazon Personalize
 - **Authentication**: Amazon Cognito
