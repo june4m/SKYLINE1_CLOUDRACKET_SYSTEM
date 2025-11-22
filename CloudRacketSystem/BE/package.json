@@ -1,0 +1,42 @@
+{
+  "name": "aws_project",
+  "version": "1.0.0",
+  "description": "A serverless badminton court booking platform built on AWS with TypeScript, featuring AI-powered recommendations and real-time booking management.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/june4m/SKYLINE1_CLOUDRACKET_SYSTEM.git"
+  },
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "package.json"
+      ],
+      "url": ""
+    }
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/june4m/SKYLINE1_CLOUDRACKET_SYSTEM/issues"
+  },
+  "homepage": "https://github.com/june4m/SKYLINE1_CLOUDRACKET_SYSTEM#readme",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.936.0",
+    "@aws-sdk/lib-dynamodb": "^3.936.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.5",
+    "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "nodemon": "^3.1.10"
+  }
+}
