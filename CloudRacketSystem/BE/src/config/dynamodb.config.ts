@@ -18,7 +18,7 @@ export class DynamoDBConfig {
         if (process.env.DYNAMODB_AccessKeyId) {
           clientConfig.credentials = {
             accessKeyId: process.env.DYNAMODB_AccessKeyId,
-            secretAccessKey: 'msY90idqHCcYzMXUzAxGmTCOMpCNfFeGi/2DFxEZ'
+            secretAccessKey: process.env.DynamoDB_SecretAccess
           };
         }
       }
