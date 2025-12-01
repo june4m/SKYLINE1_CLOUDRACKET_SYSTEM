@@ -36,23 +36,16 @@ export class CourtService {
     }
   }
 
-  async getAvailableCourts(club_id?: string) {
+  async getAvailableCourts() {
     try {
-      const input: any = {
-        TableName: TABLE_NAME,
-        FilterExpression: 'court_status = :s',
+      const cmd = new ScanCommand({
+        TableName: 'CourtData',
+        FilterExpression: 'court_status = :status',
         ExpressionAttributeValues: {
-          ':s': 'available'
+          ':status': 'available'
         }
-      }
+      })
 
-      if (club_id) {
-        // add club_id filter
-        input.FilterExpression = 'court_status = :s AND club_id = :cid'
-        input.ExpressionAttributeValues[':cid'] = club_id
-      }
-
-      const cmd = new ScanCommand(input)
       const result = (await dynamoClient.send(cmd)) as any
       return result.Items ?? []
     } catch (error) {

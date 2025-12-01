@@ -36,8 +36,7 @@ export class CourtController {
 
   async getAvailableCourts(req: Request, res: Response) {
     try {
-      const club_id = req.query.club_id as string | undefined
-      const courts = await courtService.getAvailableCourts(club_id)
+      const courts = await courtService.getAvailableCourts()
       res.status(200).json(courts)
     } catch (error: any) {
       res.status(500).json({ message: error.message })

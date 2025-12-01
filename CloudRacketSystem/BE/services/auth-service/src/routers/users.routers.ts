@@ -10,9 +10,9 @@ const bookingController = new BookingController()
 const clubController = new ClubController()
 
 // COURT
-router.get('/courts/:court_id', (req, res) => courtController.getCourt(req, res)) // Lấy 1 court theo ID
+router.get('/courts/id/:court_id', (req, res) => courtController.getCourt(req, res)) // Lấy 1 court theo ID
 router.get('/courts', (req, res) => courtController.getAllCourts(req, res)) // Lấy tất cả courts
-router.get('/courts/available', (req, res) => courtController.getAvailableCourts(req, res)) // Lấy courts có status 'available', có thể query ?club_id=...
+router.get('/courts/available', (req, res) => courtController.getAvailableCourts(req, res)) // Lấy courts có status 'available'
 router.post('/courts/search', (req, res) => courtController.searchCourts(req, res)) // Search courts theo body { club_name, club_district, ... }
 router.post('/courts', (req, res) => courtController.createCourt(req, res)) // Tạo court mới
 
