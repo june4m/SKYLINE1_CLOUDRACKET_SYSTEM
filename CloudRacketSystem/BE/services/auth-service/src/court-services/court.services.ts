@@ -1,9 +1,11 @@
 import { PutCommand, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { dynamoClient } from '../../../../shared/config/dynamodb.config'
 import { CourtDTO } from '../court-services/court.schema'
+import { calculateDistance } from '../../../../shared/utils/haversine'
 import { v4 as uuidv4 } from 'uuid'
 
 const TABLE_NAME = 'CourtData'
+const CLUB_TABLE_NAME = 'ClubData'
 
 export class CourtService {
   async getCourtById(court_id: string) {
@@ -163,6 +165,106 @@ export class CourtService {
     } catch (err: any) {
       console.error('CourtService.createCourt error:', err)
       throw new Error('Failed to create court')
+    }
+  }
+
+  /**
+   * Get nearby courts based on user location using Haversine formula
+   * Note: This implementation assumes clubs have latitude and longitude fields
+   * For production, consider using Amazon Location Service for better performance
+   */
+  async getNearbyCourts(userLat: number, userLng: number, radiusKm: number = 10) {
+    try {
+      console.log(`[CourtService.getNearbyCourts] Searching within ${radiusKm}km of (${userLat}, ${userLng})`)
+
+      // Step 1: Get all clubs with their location data
+      const clubScanInput = {
+        TableName: CLUB_TABLE_NAME,
+        ProjectionExpression:
+          'club_id, club_name, club_address, club_district, open_time, close_time, num_courts, price, rating_avg, rating_counts, popularity_score, latitude, longitude'
+      }
+
+      const clubRes = await dynamoClient.send(new ScanCommand(clubScanInput))
+      const clubs = (clubRes.Items || []) as any[]
+
+      console.log(`[CourtService.getNearbyCourts] Found ${clubs.length} clubs in database`)
+
+      // Step 2: Filter clubs by distance and calculate distance for each
+      const clubsWithDistance = clubs
+        .map((club) => {
+          // Skip clubs without location data
+          if (!club.latitude || !club.longitude) {
+            console.log(`[CourtService.getNearbyCourts] Club ${club.club_id} missing lat/lng, skipping`)
+            return null
+          }
+
+          const distance = calculateDistance(userLat, userLng, club.latitude, club.longitude)
+
+          return {
+            ...club,
+            distance_km: Math.round(distance * 100) / 100 // Round to 2 decimal places
+          }
+        })
+        .filter((club) => club !== null && club.distance_km <= radiusKm) as any[]
+
+      console.log(`[CourtService.getNearbyCourts] Found ${clubsWithDistance.length} clubs within ${radiusKm}km`)
+
+      // Step 3: Sort by distance (nearest first)
+      clubsWithDistance.sort((a, b) => a.distance_km - b.distance_km)
+
+      // Step 4: Get courts for each nearby club
+      const clubIds = clubsWithDistance.map((club) => club.club_id)
+
+      if (clubIds.length === 0) {
+        return []
+      }
+
+      // Get all courts
+      const courtScanInput = {
+        TableName: TABLE_NAME,
+        ProjectionExpression: 'court_id, club_id, court_name, court_status'
+      }
+
+      const courtRes = await dynamoClient.send(new ScanCommand(courtScanInput))
+      const allCourts = (courtRes.Items || []) as any[]
+
+      // Filter courts by nearby club IDs
+      const nearbyCourts = allCourts.filter((court) => clubIds.includes(court.club_id))
+
+      console.log(`[CourtService.getNearbyCourts] Found ${nearbyCourts.length} courts in nearby clubs`)
+
+      // Step 5: Group courts by club and combine data
+      const courtsByClub: Record<string, any[]> = {}
+      for (const court of nearbyCourts) {
+        if (!courtsByClub[court.club_id]) {
+          courtsByClub[court.club_id] = []
+        }
+        courtsByClub[court.club_id].push(court)
+      }
+
+      // Step 6: Build final result with club info and courts
+      const result = clubsWithDistance.map((club) => ({
+        club_id: club.club_id,
+        club_name: club.club_name,
+        club_address: club.club_address,
+        club_district: club.club_district,
+        distance_km: club.distance_km,
+        latitude: club.latitude,
+        longitude: club.longitude,
+        open_time: club.open_time,
+        close_time: club.close_time,
+        price: club.price,
+        rating_avg: club.rating_avg,
+        rating_counts: club.rating_counts,
+        popularity_score: club.popularity_score,
+        num_courts: club.num_courts,
+        courts: courtsByClub[club.club_id] || []
+      }))
+
+      return result
+    } catch (error) {
+      console.error('CourtService.getNearbyCourts error:', error)
+      throw new Error('Failed to fetch nearby courts')
     }
   }
 }

@@ -76,4 +76,59 @@ export class CourtController {
       res.status(500).json({ message: err.message })
     }
   }
+
+  /**
+   * Get nearby courts based on user location
+   * GET /courts/nearby?latitude=10.762622&longitude=106.660172&radius=10
+   */
+  async getNearbyCourts(req: Request, res: Response) {
+    try {
+      const { latitude, longitude, radius } = req.query
+
+      // Validate required parameters
+      if (!latitude || !longitude) {
+        return res.status(400).json({
+          message: 'latitude and longitude are required query parameters'
+        })
+      }
+
+      const lat = parseFloat(latitude as string)
+      const lng = parseFloat(longitude as string)
+      const radiusKm = radius ? parseFloat(radius as string) : 10 // Default 10km
+
+      // Validate numeric values
+      if (isNaN(lat) || isNaN(lng) || isNaN(radiusKm)) {
+        return res.status(400).json({
+          message: 'latitude, longitude, and radius must be valid numbers'
+        })
+      }
+
+      // Validate latitude and longitude ranges
+      if (lat < -90 || lat > 90) {
+        return res.status(400).json({
+          message: 'latitude must be between -90 and 90'
+        })
+      }
+
+      if (lng < -180 || lng > 180) {
+        return res.status(400).json({
+          message: 'longitude must be between -180 and 180'
+        })
+      }
+
+      console.log(`Searching for courts near (${lat}, ${lng}) within ${radiusKm}km`)
+
+      const nearbyCourts = await courtService.getNearbyCourts(lat, lng, radiusKm)
+
+      res.status(200).json({
+        count: nearbyCourts.length,
+        radius_km: radiusKm,
+        user_location: { latitude: lat, longitude: lng },
+        courts: nearbyCourts
+      })
+    } catch (error: any) {
+      console.error('CourtController.getNearbyCourts error:', error)
+      res.status(500).json({ message: error.message })
+    }
+  }
 }
