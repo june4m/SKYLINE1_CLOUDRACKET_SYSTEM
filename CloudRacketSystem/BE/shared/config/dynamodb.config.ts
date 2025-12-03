@@ -15,10 +15,10 @@ export class DynamoDBConfig {
         clientConfig.endpoint = process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000';
         
         // Only set credentials if both accessKeyId and secretAccessKey are available
-        if (process.env.DYNAMODB_AccessKeyId) {
+        if (process.env.DYNAMODB_ACCESSKEYID) {
           clientConfig.credentials = {
-            accessKeyId: process.env.DYNAMODB_AccessKeyId,
-            secretAccessKey: process.env.DynamoDB_SecretAccess
+            accessKeyId: process.env.DYNAMODB_ACCESSKEYID,
+            secretAccessKey: process.env.DYNAMODB_SECRETACCESS
           };
         }
       }

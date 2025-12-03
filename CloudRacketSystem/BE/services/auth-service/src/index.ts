@@ -1,12 +1,18 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import router from './routers/users.routers';
+
 const app = express();
 const port = 3000;
 
-app.get('/api', router);
-app.listen(port, ()=>{
-    console.log(`Server is running on port ${port}`);
-})
+// Middleware phải đặt TRƯỚC routes
 app.use(express.json());
 app.use(cookieParser());
+
+// Routes
+app.use('/api', router);
+
+// Start server
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+});
