@@ -1,8 +1,103 @@
 # Cloud Racket Platform - AWS Serverless Infrastructure
 
-Kiến trúc serverless hoàn chỉnh cho nền tảng đặt sân cầu lông Cloud Racket, sử dụng AWS CDK.
+Kiến trúc serverless hoàn chỉnh cho nền tảng đặt sân cầu lông Cloud Racket, sử dụng AWS CDK với TypeScript.
 
 ## 🏗️ Kiến Trúc
+
+### Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        WEB[Web App]
+        MOBILE[Mobile App]
+    end
+
+    subgraph "Security Layer"
+        WAF[AWS WAF]
+        COGNITO[Amazon Cognito]
+    end
+
+    subgraph "API Layer"
+        APIGW[API Gateway REST API]
+    end
+
+    subgraph "Compute Layer"
+        subgraph "Lambda Functions"
+            AUTH[Auth Functions]
+            COURT[Court Functions]
+            BOOKING[Booking Functions]
+            REVIEW[Review Functions]
+            RECOMMEND[Recommendation Functions]
+            DASHBOARD[Dashboard Functions]
+            ADMIN[Admin Functions]
+            SCHEDULED[Scheduled Functions]
+        end
+        LAYERS[Lambda Layers]
+    end
+
+    subgraph "Data Layer"
+        DYNAMO[(DynamoDB Tables)]
+        S3_IMG[S3 Images Bucket]
+        S3_RPT[S3 Reports Bucket]
+    end
+
+    subgraph "Integration Layer"
+        SES[Amazon SES]
+        LOCATION[Location Service]
+        EVENTBRIDGE[EventBridge Scheduler]
+    end
+
+    subgraph "Monitoring Layer"
+        CW[CloudWatch]
+        SNS[SNS Alerts]
+    end
+
+    WEB --> WAF
+    MOBILE --> WAF
+    WAF --> APIGW
+    APIGW --> COGNITO
+    APIGW --> AUTH
+    APIGW --> COURT
+    APIGW --> BOOKING
+    APIGW --> REVIEW
+    APIGW --> RECOMMEND
+    APIGW --> DASHBOARD
+    APIGW --> ADMIN
+    
+    AUTH --> COGNITO
+    AUTH --> DYNAMO
+    COURT --> DYNAMO
+    COURT --> S3_IMG
+    COURT --> LOCATION
+    BOOKING --> DYNAMO
+    BOOKING --> SES
+    REVIEW --> DYNAMO
+    RECOMMEND --> DYNAMO
+    DASHBOARD --> DYNAMO
+    DASHBOARD --> S3_RPT
+    ADMIN --> DYNAMO
+    ADMIN --> COGNITO
+    
+    EVENTBRIDGE --> SCHEDULED
+    SCHEDULED --> DYNAMO
+    SCHEDULED --> SES
+    SCHEDULED --> S3_RPT
+    
+    DYNAMO -.->|Streams| BOOKING
+    DYNAMO -.->|Streams| REVIEW
+    
+    AUTH --> LAYERS
+    COURT --> LAYERS
+    BOOKING --> LAYERS
+    REVIEW --> LAYERS
+    
+    APIGW --> CW
+    AUTH --> CW
+    COURT --> CW
+    BOOKING --> CW
+    CW --> SNS
+```
 
 ### AWS Services Được Sử Dụng
 
@@ -50,19 +145,38 @@ infrastructure/
 
 ### Prerequisites
 
-1. **AWS CLI** đã được cấu hình:
+1. **Node.js** (v18.x hoặc cao hơn):
 ```bash
+node --version  # Yêu cầu >= 18.0.0
+npm --version   # Yêu cầu >= 9.0.0
+```
+
+2. **AWS CLI** (v2.x) đã được cấu hình:
+```bash
+# Kiểm tra version
+aws --version  # Yêu cầu >= 2.0.0
+
+# Cấu hình credentials
 aws configure
+# Nhập: AWS Access Key ID, Secret Access Key, Region (ap-southeast-1), Output format (json)
+
+# Verify cấu hình
+aws sts get-caller-identity
 ```
 
-2. **Node.js** (v18 hoặc cao hơn):
+3. **AWS CDK CLI** (v2.110.0 hoặc cao hơn):
 ```bash
-node --version
-```
-
-3. **AWS CDK CLI**:
-```bash
+# Cài đặt CDK CLI globally
 npm install -g aws-cdk
+
+# Kiểm tra version
+cdk --version  # Yêu cầu >= 2.110.0
+```
+
+4. **TypeScript** (v5.x):
+```bash
+# Đã được cài đặt như devDependency, không cần cài global
+npx tsc --version
 ```
 
 ### Bước 1: Cài Đặt Dependencies
@@ -103,10 +217,23 @@ npm run diff
 npm run deploy:dev
 ```
 
+#### Staging Environment
+```bash
+npm run deploy:staging
+```
+
 #### Production Environment
 ```bash
 npm run deploy:prod
 ```
+
+### Environment Configuration
+
+| Environment | RemovalPolicy | Personalize | Lambda Memory | Cache | Log Retention |
+|-------------|---------------|-------------|---------------|-------|---------------|
+| dev | DESTROY | ❌ | 256 MB | ❌ | 14 days |
+| staging | RETAIN | ❌ | 512 MB | ✅ | 30 days |
+| prod | RETAIN | ✅ | 512 MB | ✅ | 90 days |
 
 ### Bước 6: Verify Email trong SES
 

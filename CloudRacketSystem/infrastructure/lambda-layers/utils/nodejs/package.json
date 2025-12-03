@@ -1,0 +1,5 @@
+{
+  "name": "cloud-racket-utils-layer",
+  "version": "1.0.0",
+  "description": "Business logic utilities for Cloud Racket Lambda functions"
+}
