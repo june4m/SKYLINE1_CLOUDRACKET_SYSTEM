@@ -2,15 +2,15 @@ import { Construct } from 'constructs';
 import {
   Function,
   Runtime,
-  Code,
   Tracing,
   LayerVersion,
   StartingPosition,
 } from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { Table } from 'aws-cdk-lib/aws-dynamodb';
+import { Table, ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as path from 'path';
 
@@ -22,13 +22,13 @@ import * as path from 'path';
 export interface LambdaConstructProps {
   stage: string;
   dynamoDBTables: {
-    courtsTable: Table;
+    courtsTable: ITable;
     courtsTableName: string;
     courtsTableArn: string;
     availabilityTable: Table;
     availabilityTableName: string;
     availabilityTableArn: string;
-    bookingsTable: Table;
+    bookingsTable: ITable;
     bookingsTableName: string;
     bookingsTableArn: string;
     bookingsStreamArn: string;
@@ -153,11 +153,11 @@ export class LambdaConstruct extends Construct {
       timeout: number = 30,
       additionalEnv: Record<string, string> = {}
     ): Function => {
-      return new Function(this, functionId, {
+      return new NodejsFunction(this, functionId, {
         functionName: `${stage}-${functionId}`,
         runtime: Runtime.NODEJS_18_X,
-        handler: 'index.handler',
-        code: Code.fromAsset(path.join(__dirname, `../../lambda/${handlerPath}`)),
+        handler: 'handler',
+        entry: path.join(__dirname, `../../lambda/${handlerPath}/index.ts`),
         memorySize,
         timeout: Duration.seconds(timeout),
         layers: [lambdaLayers.commonLayer, lambdaLayers.utilsLayer],
@@ -168,6 +168,16 @@ export class LambdaConstruct extends Construct {
         tracing: Tracing.ACTIVE,
         logRetention: RetentionDays.ONE_MONTH,
         description,
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          externalModules: [
+            'aws-sdk',
+            '@aws-sdk/*',
+            'lodash',
+            'uuid',
+          ],
+        },
       });
     };
 
@@ -228,6 +238,12 @@ export class LambdaConstruct extends Construct {
       actions: ['dynamodb:PutItem'],
       resources: [dynamoDBTables.courtsTableArn],
     }));
+    // Permission to check if club exists
+    this.createCourtFunction.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['dynamodb:GetItem'],
+      resources: [`arn:aws:dynamodb:${Stack.of(this).region}:${Stack.of(this).account}:table/ClubData`],
+    }));
 
     this.getCourtFunction = createLambdaFunction(
       'getCourt',
@@ -272,6 +288,15 @@ export class LambdaConstruct extends Construct {
       actions: ['dynamodb:Scan', 'dynamodb:Query'],
       resources: [dynamoDBTables.courtsTableArn, `${dynamoDBTables.courtsTableArn}/index/*`],
     }));
+    // Permission to access ClubData table for searching by club info
+    this.searchCourtsFunction.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['dynamodb:Scan', 'dynamodb:Query'],
+      resources: [
+        `arn:aws:dynamodb:${Stack.of(this).region}:${Stack.of(this).account}:table/ClubData`,
+        `arn:aws:dynamodb:${Stack.of(this).region}:${Stack.of(this).account}:table/ClubData/index/*`,
+      ],
+    }));
 
     this.nearbyCourtsFunction = createLambdaFunction(
       'nearbyCourts',
@@ -309,12 +334,12 @@ export class LambdaConstruct extends Construct {
     this.getAvailabilityFunction = createLambdaFunction(
       'getAvailability',
       'court/getAvailability',
-      'Get court availability handler'
+      'Get available courts handler'
     );
     this.getAvailabilityFunction.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
-      actions: ['dynamodb:Query'],
-      resources: [dynamoDBTables.availabilityTableArn, `${dynamoDBTables.availabilityTableArn}/index/*`],
+      actions: ['dynamodb:Scan'],
+      resources: [dynamoDBTables.courtsTableArn],
     }));
 
     this.updateAvailabilityFunction = createLambdaFunction(
@@ -362,7 +387,7 @@ export class LambdaConstruct extends Construct {
     );
     this.getBookingFunction.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
-      actions: ['dynamodb:GetItem', 'dynamodb:Query'],
+      actions: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:Scan'],
       resources: [
         dynamoDBTables.bookingsTableArn,
         dynamoDBTables.courtsTableArn,
@@ -412,21 +437,21 @@ export class LambdaConstruct extends Construct {
       actions: ['ses:SendEmail', 'ses:SendTemplatedEmail'],
       resources: [ses.emailIdentityArn, 'arn:aws:ses:*:*:identity/*'],
     }));
-    this.bookingConfirmationFunction.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['dynamodb:GetRecords', 'dynamodb:GetShardIterator', 'dynamodb:DescribeStream', 'dynamodb:ListStreams'],
-      resources: [dynamoDBTables.bookingsStreamArn],
-    }));
-
-    // Add DynamoDB Stream event source for booking confirmation
-    this.bookingConfirmationFunction.addEventSource(
-      new DynamoEventSource(dynamoDBTables.bookingsTable, {
-        startingPosition: StartingPosition.LATEST,
-        batchSize: 10,
-        maxBatchingWindow: Duration.seconds(5),
-        retryAttempts: 2,
-      })
-    );
+    // NOTE: DynamoDB Stream event source disabled because imported Booking table doesn't have streams enabled
+    // To enable: Add DynamoDB Streams to the Booking table in AWS Console, then uncomment below
+    // this.bookingConfirmationFunction.addToRolePolicy(new PolicyStatement({
+    //   effect: Effect.ALLOW,
+    //   actions: ['dynamodb:GetRecords', 'dynamodb:GetShardIterator', 'dynamodb:DescribeStream', 'dynamodb:ListStreams'],
+    //   resources: [dynamoDBTables.bookingsStreamArn],
+    // }));
+    // this.bookingConfirmationFunction.addEventSource(
+    //   new DynamoEventSource(dynamoDBTables.bookingsTable, {
+    //     startingPosition: StartingPosition.LATEST,
+    //     batchSize: 10,
+    //     maxBatchingWindow: Duration.seconds(5),
+    //     retryAttempts: 2,
+    //   })
+    // );
 
     // ==========================================
     // REVIEW FUNCTIONS (Requirements: 7.4, 10.2, 13.2)

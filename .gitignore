@@ -1,3 +1,9 @@
+nodemon.json
+package.json
+README.md
+start-dev.bat
+tsconfig.json
+
 # IDE
 .vscode/
 .idea/

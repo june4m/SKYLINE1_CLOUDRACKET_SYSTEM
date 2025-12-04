@@ -344,7 +344,7 @@ export class CloudRacketServerlessStack extends cdk.Stack {
     // ==========================================
     this.waf = new WAFConstruct(this, 'WAF', {
       stage,
-      apiGatewayArn: this.apiGateway.api.arnForExecuteApi(),
+      apiGatewayArn: this.apiGateway.api.deploymentStage.stageArn,
     });
 
     // ==========================================
@@ -452,12 +452,7 @@ export class CloudRacketServerlessStack extends cdk.Stack {
       exportName: `${stage}-bookings-table-name`,
     });
 
-    // Output WAF Web ACL ARN
-    new CfnOutput(this, 'WafWebAclArn', {
-      value: this.waf.webAclArn,
-      description: 'WAF Web ACL ARN',
-      exportName: `${stage}-waf-web-acl-arn`,
-    });
+    // Note: WAF Web ACL ARN output is already defined in WAFConstruct
 
     // Output Location Service Place Index Name
     new CfnOutput(this, 'PlaceIndexName', {
