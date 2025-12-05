@@ -6,8 +6,9 @@ import {
   TableEncryption,
   ProjectionType,
   StreamViewType,
+  ITable,
 } from 'aws-cdk-lib/aws-dynamodb';
-import { RemovalPolicy } from 'aws-cdk-lib';
+import { RemovalPolicy, Stack } from 'aws-cdk-lib';
 
 export interface DynamoDBConstructProps {
   stage: string;
@@ -15,9 +16,9 @@ export interface DynamoDBConstructProps {
 }
 
 export class DynamoDBConstruct extends Construct {
-  public readonly courtsTable: Table;
+  public readonly courtsTable: ITable;
   public readonly availabilityTable: Table;
-  public readonly bookingsTable: Table;
+  public readonly bookingsTable: ITable;
   public readonly reviewsTable: Table;
   public readonly interactionsTable: Table;
 
@@ -44,20 +45,14 @@ export class DynamoDBConstruct extends Construct {
 
     const { stage, removalPolicy } = props;
 
-    // Courts Table
-    this.courtsTable = new Table(this, 'CourtsTable', {
-      tableName: `${stage}-courts`,
-      partitionKey: { name: 'courtId', type: AttributeType.STRING },
-      billingMode: BillingMode.PAY_PER_REQUEST,
-      encryption: TableEncryption.AWS_MANAGED,
-      removalPolicy,
-    });
-
-    this.courtsTable.addGlobalSecondaryIndex({
-      indexName: 'ownerId-index',
-      partitionKey: { name: 'ownerId', type: AttributeType.STRING },
-      projectionType: ProjectionType.ALL,
-    });
+    // Courts Table - Import existing table
+    const accountId = Stack.of(this).account;
+    const region = Stack.of(this).region;
+    this.courtsTable = Table.fromTableArn(
+      this,
+      'CourtsTable',
+      `arn:aws:dynamodb:${region}:${accountId}:table/CourtData`
+    );
 
     // Availability Table
     this.availabilityTable = new Table(this, 'AvailabilityTable', {
@@ -75,29 +70,12 @@ export class DynamoDBConstruct extends Construct {
       projectionType: ProjectionType.ALL,
     });
 
-    // Bookings Table (with streams for email notifications)
-    this.bookingsTable = new Table(this, 'BookingsTable', {
-      tableName: `${stage}-bookings`,
-      partitionKey: { name: 'bookingId', type: AttributeType.STRING },
-      billingMode: BillingMode.PAY_PER_REQUEST,
-      encryption: TableEncryption.AWS_MANAGED,
-      removalPolicy,
-      stream: StreamViewType.NEW_AND_OLD_IMAGES,
-    });
-
-    this.bookingsTable.addGlobalSecondaryIndex({
-      indexName: 'userId-index',
-      partitionKey: { name: 'userId', type: AttributeType.STRING },
-      sortKey: { name: 'createdAt', type: AttributeType.STRING },
-      projectionType: ProjectionType.ALL,
-    });
-
-    this.bookingsTable.addGlobalSecondaryIndex({
-      indexName: 'courtId-index',
-      partitionKey: { name: 'courtId', type: AttributeType.STRING },
-      sortKey: { name: 'date', type: AttributeType.STRING },
-      projectionType: ProjectionType.ALL,
-    });
+    // Bookings Table - Import existing table
+    this.bookingsTable = Table.fromTableArn(
+      this,
+      'BookingsTable',
+      `arn:aws:dynamodb:${region}:${accountId}:table/Booking`
+    ) as Table;
 
     // Reviews Table (with streams for rating aggregation)
     this.reviewsTable = new Table(this, 'ReviewsTable', {
@@ -139,9 +117,9 @@ export class DynamoDBConstruct extends Construct {
     });
 
     // Export table names
-    this.courtsTableName = this.courtsTable.tableName;
+    this.courtsTableName = 'CourtData';  // Use existing table name
     this.availabilityTableName = this.availabilityTable.tableName;
-    this.bookingsTableName = this.bookingsTable.tableName;
+    this.bookingsTableName = 'Booking';  // Use existing table name
     this.reviewsTableName = this.reviewsTable.tableName;
     this.interactionsTableName = this.interactionsTable.tableName;
 
@@ -152,8 +130,8 @@ export class DynamoDBConstruct extends Construct {
     this.reviewsTableArn = this.reviewsTable.tableArn;
     this.interactionsTableArn = this.interactionsTable.tableArn;
 
-    // Export stream ARNs
-    this.bookingsStreamArn = this.bookingsTable.tableStreamArn!;
+    // Export stream ARNs (empty for imported tables without streams)
+    this.bookingsStreamArn = '';  // Imported table - no stream
     this.reviewsStreamArn = this.reviewsTable.tableStreamArn!;
   }
 }

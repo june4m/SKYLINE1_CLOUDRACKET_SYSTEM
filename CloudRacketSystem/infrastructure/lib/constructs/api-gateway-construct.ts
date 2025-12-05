@@ -100,57 +100,52 @@ export class APIGatewayConstruct extends Construct {
     // Create CloudWatch Log Group for API Gateway access logs
     // Requirement: 8.13
     const accessLogGroup = new LogGroup(this, 'APIAccessLogs', {
-      logGroupName: `/aws/apigateway/${stage}-cloud-racket-api`,
-      retention: RetentionDays.ONE_MONTH,
-    });
+  // remove explicit logGroupName to avoid name collisions
+  retention: RetentionDays.ONE_MONTH,
+});
 
     // Create REST API with stage-based deployment
     // Requirements: 8.1, 8.10, 8.11, 8.12, 8.13
-    this.api = new RestApi(this, 'CloudRacketAPI', {
-      restApiName: `${stage}-cloud-racket-api`,
-      description: `Cloud Racket Platform API - ${stage}`,
-      deployOptions: {
-        stageName: stage,
-        // Throttling: 100 req/min per user (Requirement: 8.11)
-        throttlingRateLimit: 100,
-        throttlingBurstLimit: 200,
-        // CloudWatch logging (Requirement: 8.13)
-        loggingLevel: MethodLoggingLevel.INFO,
-        dataTraceEnabled: true,
-        metricsEnabled: true,
-        tracingEnabled: true, // X-Ray tracing
-        // Caching: 60s TTL for GET endpoints (Requirement: 8.12)
-        cachingEnabled: true,
-        cacheClusterEnabled: true,
-        cacheClusterSize: '0.5', // 0.5 GB cache
-        cacheTtl: Duration.seconds(60),
-        // Access logging
-        accessLogDestination: new LogGroupLogDestination(accessLogGroup),
-        accessLogFormat: AccessLogFormat.jsonWithStandardFields(),
-      },
-      // CORS enabled for all endpoints (Requirement: 8.10)
-      defaultCorsPreflightOptions: {
-        allowOrigins: Cors.ALL_ORIGINS,
-        allowMethods: Cors.ALL_METHODS,
-        allowHeaders: [
-          'Content-Type',
-          'X-Amz-Date',
-          'Authorization',
-          'X-Api-Key',
-          'X-Amz-Security-Token',
-        ],
-        allowCredentials: true,
-      },
-      cloudWatchRole: true,
-    });
+  this.api = new RestApi(this, 'CloudRacketAPI', {
+    // restApiName: `${stage}-cloud-racket-api`, // <-- remove this line
+    description: `Cloud Racket Platform API - ${stage}`,
+    deployOptions: {
+      stageName: stage,
+      throttlingRateLimit: 100,
+      throttlingBurstLimit: 200,
+      loggingLevel: MethodLoggingLevel.INFO,
+      dataTraceEnabled: true,
+      metricsEnabled: true,
+      tracingEnabled: true,
+      cachingEnabled: true,
+      cacheClusterEnabled: true,
+      cacheClusterSize: '0.5',
+      cacheTtl: Duration.seconds(60),
+      accessLogDestination: new LogGroupLogDestination(accessLogGroup),
+      accessLogFormat: AccessLogFormat.jsonWithStandardFields(),
+    },
+    defaultCorsPreflightOptions: {
+      allowOrigins: Cors.ALL_ORIGINS,
+      allowMethods: Cors.ALL_METHODS,
+      allowHeaders: [
+        'Content-Type',
+        'X-Amz-Date',
+        'Authorization',
+        'X-Api-Key',
+        'X-Amz-Security-Token',
+      ],
+      allowCredentials: true,
+    },
+    cloudWatchRole: true,
+  });
 
     // Create Cognito User Pool Authorizer (Requirement: 8.2)
     const userPool = UserPool.fromUserPoolArn(this, 'UserPool', userPoolArn);
     const authorizer = new CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
-      cognitoUserPools: [userPool],
-      authorizerName: `${stage}-cognito-authorizer`,
-      identitySource: 'method.request.header.Authorization',
-    });
+    cognitoUserPools: [userPool],
+    // authorizerName: `${stage}-cognito-authorizer`, // <-- remove this line
+    identitySource: 'method.request.header.Authorization',
+  });
 
     // ==========================================
     // AUTH ROUTES (Requirement: 8.3)

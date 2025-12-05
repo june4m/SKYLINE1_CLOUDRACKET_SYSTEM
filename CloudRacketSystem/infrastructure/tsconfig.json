@@ -17,13 +17,13 @@
     "inlineSources": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
-    "typeRoots": ["./node_modules/@types"],
+    "typeRoots": ["./node_modules/@types", "./lambda/shared/types"],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "outDir": "dist"
   },
-  "include": ["lib/**/*", "bin/**/*", "test/**/*"],
+  "include": ["lib/**/*", "bin/**/*", "test/**/*", "lambda/**/*"],
   "exclude": ["node_modules", "cdk.out", "dist"]
 }
